@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Lovci příšer: Živý ostrov</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amatic+SC:wght@700&family=Alegreya+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="vignette"></div>
+<div id="fade"></div>
+<div id="words"></div>
+
+<div id="hud" class="hidden">
+  <div id="quest" class="paper">
+    <div id="questTitle"></div>
+    <div id="questStep"></div>
+  </div>
+  <div id="topmid">
+    <canvas id="compass" width="460" height="40"></canvas>
+    <div id="boss" class="hidden"><span id="bossName"></span><div class="bar"><i id="bossFill"></i></div></div>
+    <div id="toasts"></div>
+  </div>
+  <div id="clock" class="paper"><b id="clockTime"></b><span id="clockInfo"></span></div>
+  <div id="feed"></div>
+  <div id="vitals">
+    <div class="vrow"><span>Zdraví</span><div class="bar hp"><i id="hpFill"></i></div></div>
+    <div class="vrow"><span>Výdrž</span><div class="bar sta"><i id="staFill"></i></div></div>
+  </div>
+  <div id="slot" class="paper">
+    <div id="slotIcon"></div>
+    <div id="slotText"><b id="slotName"></b><span id="slotHint"></span></div>
+    <div id="slotCount"></div>
+  </div>
+  <div id="prompt" class="hidden"></div>
+  <div id="reticle" class="hidden"></div>
+</div>
+
+<div id="touch" class="hidden">
+  <div id="joy"><div id="joyKnob"></div></div>
+  <div id="tbtns">
+    <button data-act="light" class="tb big">Útok</button>
+    <button data-act="heavy" class="tb">Silný</button>
+    <button data-act="dodge" class="tb">Úskok</button>
+    <button data-act="interact" class="tb">Akce</button>
+    <button data-act="use" class="tb">Použít</button>
+    <button data-act="next" class="tb sm">Další</button>
+    <button data-act="lock" class="tb sm">Zaměřit</button>
+    <button data-act="crouch" class="tb sm">Plížit</button>
+  </div>
+  <div id="ttop">
+    <button data-act="map" class="tb sm">Mapa</button>
+    <button data-act="journal" class="tb sm">Deník</button>
+    <button data-act="esc" class="tb sm">Menu</button>
+  </div>
+</div>
+
+<div id="overlay" class="hidden"><div id="sheet"></div></div>
+
+<div id="title">
+  <div id="titleBox">
+    <div class="kicker">zápisky z ostrova, kam se nejezdí</div>
+    <h1>Lovci příšer</h1>
+    <h2>Živý ostrov</h2>
+    <p id="titleLoad">Ostrov se probouzí…</p>
+    <div id="titleBtns" class="hidden">
+      <button id="btnContinue" class="btn hidden">Pokračovat v lovu</button>
+      <button id="btnNew" class="btn">Vyplout na ostrov</button>
+    </div>
+    <div id="titleKeys"></div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
