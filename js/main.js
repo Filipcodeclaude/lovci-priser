@@ -195,6 +195,7 @@ function start() {
     G.log('Vylodil ses na ostrově. V táboře u ohně čeká starý lovec Radovan.', false);
     G.ui.toast('Dojdi k Radovanovi u nástěnky a zmáčkni ' + (touchDevice ? 'Akce' : 'E') + '. Dá ti první úkol.', 'info');
   } else if (G.state.active) G.quests.reseed();
+  if (!touchDevice) G.ui.hint('cam', 'Kamerou otáčíš pohybem po touchpadu nebo tahem dvěma prsty. Kliknutím kurzor zamkneš do hry, Esc ho zase pustí.');
   G.ui.refresh(); G.save();
 }
 $('btnContinue').addEventListener('click', start);

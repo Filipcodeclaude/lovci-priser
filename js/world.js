@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeNoise, fbm, clamp, lerp, smooth, mulberry, TAU, dist2 } from './util.js';
 import { REGIONS } from './data.js';
 import { buildCamp, buildPickup, buildSpring, buildNest, buildHunter, STATIONS } from './models.js';
@@ -41,6 +41,7 @@ function rawHeight(x, z) {
 
 function part(geo, hex, o = {}) {
   const g = geo.index ? geo.toNonIndexed() : geo.clone();
+  if (g.attributes.uv) g.deleteAttribute('uv');
   let mtx = o.m;
   if (!mtx) {
     const p = o.p || [0, 0, 0], r = o.r || [0, 0, 0];
@@ -51,7 +52,8 @@ function part(geo, hex, o = {}) {
   const c = new THREE.Color(hex);
   const n = g.attributes.position.count;
   const arr = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; }
+  const old = g.attributes.color;
+  for (let i = 0; i < n; i++) { const k = old ? old.getX(i) : 1; arr[i * 3] = c.r * k; arr[i * 3 + 1] = c.g * k; arr[i * 3 + 2] = c.b * k; }
   g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
   return g;
 }
@@ -117,7 +119,20 @@ export function createWorld(G) {
   }
   tgeo.setAttribute('color', new THREE.BufferAttribute(tcol, 3));
   tgeo.computeVertexNormals();
-  const terrain = new THREE.Mesh(tgeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true }));
+  const dc = document.createElement('canvas'); dc.width = dc.height = 256;
+  {
+    const c = dc.getContext('2d');
+    c.fillStyle = 'rgb(242,242,242)'; c.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 2600; i++) {
+      const x = rng() * 256, y = rng() * 256, r = 0.6 + rng() * 2.6, v = 170 + rng() * 85 | 0;
+      c.fillStyle = `rgba(${v},${v},${v},${0.18 + rng() * 0.3})`;
+      for (const ox of [-256, 0, 256]) for (const oy of [-256, 0, 256]) { c.beginPath(); c.ellipse(x + ox, y + oy, r, r * (0.5 + rng()), rng() * 3, 0, 7); c.fill(); }
+    }
+  }
+  const detail = new THREE.CanvasTexture(dc);
+  detail.wrapS = detail.wrapT = THREE.RepeatWrapping; detail.repeat.set(140, 140);
+  detail.colorSpace = THREE.SRGBColorSpace; detail.anisotropy = G.renderer.capabilities.getMaxAnisotropy();
+  const terrain = new THREE.Mesh(tgeo, new THREE.MeshStandardMaterial({ vertexColors: true, map: detail, roughness: 0.97 }));
   terrain.receiveShadow = true;
   scene.add(terrain);
 
@@ -145,7 +160,7 @@ export function createWorld(G) {
 
   /* --- vítr v listí --- */
   function windy(amp) {
-    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true });
+    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88 });
     mat.onBeforeCompile = (sh) => {
       sh.uniforms.uTime = windU.time; sh.uniforms.uWind = windU.strength;
       sh.vertexShader = 'uniform float uTime;\nuniform float uWind;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -226,6 +241,23 @@ export function createWorld(G) {
   }
   const merge = (l) => mergeGeometries(l, false);
   const Ico = (r, d = 0) => new THREE.IcosahedronGeometry(r, d);
+  // shluk listí: nepravidelný tvar, uvnitř a dole tmavší, jako by tam nesvítilo slunce
+  function Leaf(r) {
+    let g = new THREE.IcosahedronGeometry(r, 2);
+    g.deleteAttribute('normal'); g.deleteAttribute('uv');
+    g = mergeVertices(g);
+    const pos = g.attributes.position, n = pos.count, shade = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const f = 1 + (rng() - 0.5) * 0.36;
+      const y = pos.getY(i);
+      pos.setXYZ(i, pos.getX(i) * f, y * f, pos.getZ(i) * f);
+      const k = (0.55 + 0.45 * clamp((y / r + 1) / 2, 0, 1)) * (0.85 + rng() * 0.3);
+      shade[i * 3] = shade[i * 3 + 1] = shade[i * 3 + 2] = k;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(shade, 3));
+    g.computeVertexNormals();
+    return g;
+  }
   const Cyl = (a, b, h, s = 6) => new THREE.CylinderGeometry(a, b, h, s);
   const Cone = (r, h, s = 5) => new THREE.ConeGeometry(r, h, s);
   const Box = (x, y, z) => new THREE.BoxGeometry(x, y, z);
@@ -233,18 +265,18 @@ export function createWorld(G) {
   // stromy džungle
   const treeA = merge([
     part(Cyl(0.22, 0.42, 6), 0x5a4028, { p: [0, 3, 0] }),
-    part(Ico(2.4, 1), 0x2f6b2a, { p: [0, 6.8, 0], s: [1, 0.72, 1] }),
-    part(Ico(1.7), 0x3d8236, { p: [1.3, 6.2, 0.5] }),
-    part(Ico(1.5), 0x4a9440, { p: [-1.1, 7.6, -0.7] }),
+    part(Leaf(2.4, 1), 0x2f6b2a, { p: [0, 6.8, 0], s: [1, 0.72, 1] }),
+    part(Leaf(1.7), 0x3d8236, { p: [1.3, 6.2, 0.5] }),
+    part(Leaf(1.5), 0x4a9440, { p: [-1.1, 7.6, -0.7] }),
   ]);
   const vines = [];
   for (let i = 0; i < 7; i++) { const a = i * 0.9; vines.push(part(Box(0.07, 2.5 + (i % 3), 0.07), 0x5f9a3a, { p: [Math.cos(a) * 3, 10.6 - (i % 3) * 0.5, Math.sin(a) * 3] })); }
   const treeB = merge([
     part(Cyl(0.5, 0.95, 13, 7), 0x4a3524, { p: [0, 6.5, 0] }),
     part(Cone(1.5, 2.4, 5), 0x4a3524, { p: [0, 1.0, 0] }),
-    part(Ico(4.3, 1), 0x275c26, { p: [0, 13.8, 0], s: [1, 0.5, 1] }),
-    part(Ico(3), 0x347a2e, { p: [2.2, 12.4, 1] , s: [1, 0.7, 1] }),
-    part(Ico(2.6), 0x3f8a36, { p: [-2, 15, -1], s: [1, 0.6, 1] }),
+    part(Leaf(4.3, 1), 0x275c26, { p: [0, 13.8, 0], s: [1, 0.5, 1] }),
+    part(Leaf(3), 0x347a2e, { p: [2.2, 12.4, 1] , s: [1, 0.7, 1] }),
+    part(Leaf(2.6), 0x3f8a36, { p: [-2, 15, -1], s: [1, 0.6, 1] }),
     ...vines,
   ]);
   const fr = [];
@@ -253,7 +285,7 @@ export function createWorld(G) {
     part(Cyl(0.17, 0.22, 2.3), 0x8a6a42, { p: [0, 1.15, 0] }),
     part(Cyl(0.15, 0.17, 2.3), 0x8a6a42, { p: [0.14, 3.3, 0], r: [0, 0, -0.12] }),
     part(Cyl(0.13, 0.15, 2.2), 0x7d5f3a, { p: [0.4, 5.3, 0], r: [0, 0, -0.2] }),
-    part(Ico(0.16), 0x4a3520, { p: [0.4, 6.0, 0.2] }), part(Ico(0.16), 0x4a3520, { p: [0.7, 6.0, -0.1] }),
+    part(Leaf(0.16), 0x4a3520, { p: [0.4, 6.0, 0.2] }), part(Leaf(0.16), 0x4a3520, { p: [0.7, 6.0, -0.1] }),
     ...fr,
   ]);
   const roots = [];
@@ -263,8 +295,8 @@ export function createWorld(G) {
   const swampTree = merge([
     part(Cyl(0.2, 0.5, 4.6), 0x3b3226, { p: [0.15, 2.9, 0], r: [0, 0, -0.08] }),
     ...roots,
-    part(Ico(2), 0x4a5a2a, { p: [0.3, 5.3, 0], s: [1.3, 0.45, 1.3] }),
-    part(Ico(1.3), 0x566b30, { p: [1.4, 4.6, 0.5], s: [1.2, 0.5, 1.2] }),
+    part(Leaf(2), 0x4a5a2a, { p: [0.3, 5.3, 0], s: [1.3, 0.45, 1.3] }),
+    part(Leaf(1.3), 0x566b30, { p: [1.4, 4.6, 0.5], s: [1.2, 0.5, 1.2] }),
     ...moss,
   ]);
   const pine = merge([
@@ -273,17 +305,21 @@ export function createWorld(G) {
     part(Cone(1.0, 1.9, 6), 0x35593f, { p: [0, 3.7, 0] }),
     part(Cone(0.65, 1.5, 6), 0x3a6146, { p: [0, 4.7, 0] }),
   ]);
-  const bush = merge([part(Ico(0.8), 0x3b7a33, { p: [0, 0.6, 0] }), part(Ico(0.6), 0x4c8f3c, { p: [0.6, 0.45, 0.2] }), part(Ico(0.55), 0x337030, { p: [-0.5, 0.5, -0.3] })]);
+  const bush = merge([part(Leaf(0.8), 0x3b7a33, { p: [0, 0.6, 0] }), part(Leaf(0.6), 0x4c8f3c, { p: [0.6, 0.45, 0.2] }), part(Leaf(0.55), 0x337030, { p: [-0.5, 0.5, -0.3] })]);
   const ff = [];
   for (let i = 0; i < 7; i++) ff.push(frond(Cone(0.22, 1.5, 3), i % 2 ? 0x4f9a3e : 0x5aa846, [0, 0.05, 0], (i / 7) * TAU, 0.95, 1.5, 0.2));
   const fern = merge(ff);
   const gb = [];
   for (let i = 0; i < 4; i++) gb.push(part(Cone(0.055, 0.62, 3), 0xffffff, { p: [Math.cos(i * 1.6) * 0.09, 0.3, Math.sin(i * 1.6) * 0.09], r: [Math.sin(i * 1.6) * 0.35, 0, -Math.cos(i * 1.6) * 0.35] }));
   const grass = merge(gb);
+  {
+    const gp = grass.attributes.position, gc = grass.attributes.color;
+    for (let i = 0; i < gp.count; i++) { const k = 0.32 + 0.85 * clamp(gp.getY(i) / 0.6, 0, 1); gc.setXYZ(i, k, k, k); }
+  }
   const rd = [];
   for (let i = 0; i < 3; i++) { const x = (i - 1) * 0.14, h = 1.7 + i * 0.25; rd.push(part(Cyl(0.022, 0.03, h, 4), 0x7c8a45, { p: [x, h / 2, i * 0.07] }), part(Cyl(0.05, 0.05, 0.3, 5), 0x5a3a22, { p: [x, h + 0.1, i * 0.07] })); }
   const reed = merge(rd);
-  const flower = merge([part(Cyl(0.015, 0.015, 0.4, 4), 0x9ab86a, { p: [0, 0.2, 0] }), part(Ico(0.09), 0xffffff, { p: [0, 0.44, 0] })]);
+  const flower = merge([part(Cyl(0.015, 0.015, 0.4, 4), 0x9ab86a, { p: [0, 0.2, 0] }), part(Leaf(0.09), 0xffffff, { p: [0, 0.44, 0] })]);
   const lily = part(new THREE.CircleGeometry(0.5, 7), 0x4f8a3a, { r: [-Math.PI / 2, 0, 0] });
   function rough(geo, amt, hexA, hexB) {
     const g = geo.index ? geo.toNonIndexed() : geo;
@@ -324,7 +360,7 @@ export function createWorld(G) {
   instanced(fern, reedMat, fn, { vary: 0.16 });
 
   const gcol = { 1: new THREE.Color(0x4f9a3a), 2: new THREE.Color(0x9ab04a), 3: new THREE.Color(0x6a7a34), 4: new THREE.Color(0x8a9450), 0: new THREE.Color(0x7fa046) };
-  const gr = scatter(G.lowSpec ? 3500 : 6500, (x, z, h, w) => {
+  const gr = scatter(G.lowSpec ? 4500 : 15000, (x, z, h, w) => {
     if (h < 1.1 && w[3] < 0.5) return 0;
     if (h < 0.2 || dCamp(x, z) < 9 || slopeAt(x, z) > 0.6) return 0;
     return 0.8 + rng() * 0.9;

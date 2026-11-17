@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { TAU } from './util.js';
 
-const Ico = (r, d = 1) => new THREE.IcosahedronGeometry(r, d);
+const Ico = (r, d = 2) => new THREE.IcosahedronGeometry(r, d);
 const Cyl = (a, b, h, s = 6) => new THREE.CylinderGeometry(a, b, h, s);
 const Cone = (r, h, s = 5) => new THREE.ConeGeometry(r, h, s);
 const Box = (x, y, z) => new THREE.BoxGeometry(x, y, z);
@@ -15,7 +15,7 @@ function kit() {
   const m = (color, o = {}) => {
     const k = color + JSON.stringify(o);
     if (!cache.has(k)) {
-      const mt = new THREE.MeshStandardMaterial({ color, roughness: 0.85, flatShading: true, ...o });
+      const mt = new THREE.MeshStandardMaterial({ color, roughness: 0.8, ...o });
       cache.set(k, mt); mats.push(mt);
     }
     return cache.get(k);

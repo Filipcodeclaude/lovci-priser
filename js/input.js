@@ -36,9 +36,19 @@ export function createInput(G) {
   addEventListener('contextmenu', (e) => e.preventDefault());
   document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === canvas; });
   document.addEventListener('pointerlockerror', () => { noLock = true; });
+  // kamera jde otáčet i bez zamčeného kurzoru, prostým pohybem po touchpadu
   addEventListener('mousemove', (e) => {
-    if (locked || (noLock && mouseDown)) { lookX += e.movementX; lookY += e.movementY; }
+    if (isTouch || !playing()) return;
+    if (locked) { lookX += e.movementX; lookY += e.movementY; return; }
+    lookX += e.movementX * 1.6; lookY += e.movementY * 1.6;
   });
+  // tah dvěma prsty po touchpadu otáčí kamerou (a nezoomuje stránku)
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (isTouch || !playing() || e.ctrlKey) return;
+    const k = e.deltaMode === 1 ? 18 : 1;
+    lookX -= e.deltaX * k * 1.5; lookY -= e.deltaY * k * 1.1;
+  }, { passive: false });
 
   if (isTouch) {
     const joyEl = document.getElementById('joy'), knob = document.getElementById('joyKnob');

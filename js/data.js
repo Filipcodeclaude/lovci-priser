@@ -146,7 +146,7 @@ export const QUESTS = [
 export const WEATHER_NAME = { clear: 'jasno', rain: 'déšť', fog: 'mlha', storm: 'bouřka' };
 
 export const CONTROLS = [
-  ['W A S D', 'pohyb'], ['Myš', 'kamera'], ['Levé tlačítko', 'útok'], ['Pravé tlačítko', 'silný útok'],
+  ['W A S D', 'pohyb'], ['Myš / 2 prsty na touchpadu', 'kamera'], ['Levé tlačítko', 'útok'], ['Pravé tlačítko', 'silný útok'],
   ['Mezerník', 'úskok'], ['Shift', 'běh'], ['C', 'plížení'], ['E', 'akce (sebrat, prozkoumat)'],
   ['Q', 'použít předmět'], ['1 2 3 4', 'výběr předmětu'], ['R', 'zaměřit příšeru'], ['M', 'mapa'], ['J', 'deník'], ['Esc', 'menu'],
 ];
